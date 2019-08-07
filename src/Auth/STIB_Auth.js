@@ -5,15 +5,15 @@ import {NotificationManager } from 'react-notifications';
 class STIB_Auth {  
     login(uName, password, fromlink, cb, response) {
         (async () => {
-            const rawResponse = await fetch(AppConfig.baseURL + '/login', {
+            const rawResponse = await fetch(AppConfig.baseURL + '/authenticate', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    "password": password,
-                    "userName": uName
-                  })
+                    "username":"milad",
+                    "password":"something"
+                })
             });
             const content = await rawResponse.json();            
             if (rawResponse.status === 200){
