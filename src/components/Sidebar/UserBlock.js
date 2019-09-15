@@ -7,6 +7,8 @@ import { Link } from 'react-router-dom';
 import { connect } from 'react-redux';
 import { Badge } from 'reactstrap';
 import { NotificationManager } from 'react-notifications';
+import STIB_Authentication from '../../Auth/STIB_Auth'
+import { withRouter } from 'react-router-dom';
 
 // components
 import SupportPage from '../Support/Support';
@@ -28,8 +30,7 @@ class UserBlock extends Component {
 	 * Logout User
 	 */
 	logoutUser() {
-		//logout api!
-		this.props.history.push('/session/login')
+		STIB_Authentication.logout(this.props.history.push('/session/login'))
 	}
 
 	/**
@@ -138,6 +139,6 @@ const mapStateToProps = ({ settings }) => {
 	return settings;
 }
 
-export default connect(mapStateToProps, {
+export default withRouter(connect(mapStateToProps, {
 	logoutUserFromFirebase
-})(UserBlock);
+})(UserBlock));

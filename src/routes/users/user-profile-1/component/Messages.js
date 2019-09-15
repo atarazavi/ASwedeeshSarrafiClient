@@ -19,13 +19,10 @@ import {
   ModalFooter,
   Input,
   InputGroup,
-  InputGroupAddon,
   FormGroup,
   Label
 } from 'reactstrap';
-
-// api
-import api from 'Api';
+import AppConfig from 'Constants/AppConfig';
 
 // intl messages
 import IntlMessages from 'Util/IntlMessages';
@@ -36,156 +33,129 @@ import RctSectionLoader from 'Components/RctSectionLoader/RctSectionLoader';
 export default class Messages extends Component {
 
   state = {
-    all: false,
     reloading: false,
-    messages: null,
-    allMessages: null,
+    messages: [{
+      id: 0,
+      userName: 'Admin',
+      messages: '',
+      userAvatar: require('Assets/avatars/user-3.jpg'),
+   }],
     newMessageModal: false,
     addNewMessageDetail: {
-      id: null,
-      userName: '',
-      userAvatar: '',
+      title: '',
       message: '',
-      starred: false,
-      select: false
     },
-    viewMessageDialog: false,
-    selectedMessage: null
-  };
-
+    selectedMessage: {
+      id: 0,
+      userName: 'Admin',
+      messages: '',
+      userAvatar: require('Assets/avatars/user-3.jpg'),
+    },
+    viewMessageDialog: false
+  }
   componentDidMount() {
     this.getUserMessages();
   }
-
-  // get user messages
   getUserMessages() {
-    api.get('userMessages.js')
-      .then((response) => {
-        this.setState({ messages: response.data, allMessages: response.data });
-      })
-      .catch(error => {
-        // error handling
-      })
+    (async () => {
+      try{
+            this.setState({ reloading: true });
+            const rawResponse = await fetch(AppConfig.baseURL + '/message/forUser/' + localStorage.getItem('CurrentUsersID'), {
+            method: 'GET',
+            headers: {
+               'Content-Type': 'application/json',
+               'Authorization': localStorage.getItem('given_token')
+            }
+         });
+         const content = await rawResponse.json();            
+         if (rawResponse.status === 200){
+                        
+            this.setState({ reloading: false });
+            let messages = content.map(each => {
+                  return({
+                     id: each.id,
+                     userName: each.senderUserId === 0 ? 'Admin' : each.senderUserId,
+                     message: each.body,
+                     userAvatar: require('Assets/avatars/user-3.jpg'),
+                  }) 
+            })
+            this.setState({
+               messages
+            })
+         }else{
+            this.setState({ reloading: false });
+            NotificationManager.error('usename or password is incorrect' + rawResponse.status)
+         }
+      } catch (err){
+        this.setState({ reloading: false });
+        NotificationManager.error("something went wrong on Connecting The Server : " + err);
+      }
+   })();
   }
-
-  handleChange = name => (event, checked) => {
-    this.setState({ [name]: checked });
-  };
-
-  /**
-   * On Reload Messages
-   */
   onReloadMessages() {
     this.setState({ reloading: true });
-    let self = this;
-    setTimeout(() => {
-      self.setState({ reloading: false });
-    }, 1500);
+    this.getUserMessages()
   }
-
-  /**
-   * Get Search Results
-   */
-  getSearchResults(e) {
-    const { allMessages } = this.state;
-    const searchMessages = allMessages.filter((message) =>
-      message.message.toLowerCase().indexOf(e.target.value.toLowerCase()) > -1);
-    this.setState({ messages: searchMessages });
-  }
-
-  /**
-   * Mark Message As Star
-   */
-  markMessageAsStar(index) {
-    let messages = this.state.allMessages;
-    messages[index].starred = !messages[index].starred;
-    this.setState({ messages, allMessages: messages });
-  }
-
-  /**
-   * On Select Message
-   */
-  onSelectMessage(index) {
-    let messages = this.state.allMessages;
-    messages[index].select = !messages[index].select;
-    this.setState({ messages, allMessages: messages });
-  }
-
-  /**
-   * Open Write New Message Modal
-   */
   openWriteNewMessageModal() {
     this.setState({ newMessageModal: true });
   }
-
-  /**
-   * Toggle Write New Message Modal
-   */
   toggleWriteNewMessageModal() {
     this.setState({
       newMessageModal: !this.state.newMessageModal
     });
   }
-
-  /**
-   * Add New Message
-   */
   addNewMessage() {
-    let messages = this.state.allMessages;
-    const { userName, message } = this.state.addNewMessageDetail;
-    if (userName !== '' && message !== '') {
-      let data = {
-        ...this.state.addNewMessageDetail,
-        id: new Date().getTime()
-      }
-      messages.push(data);
-      this.setState({ reloading: true, newMessageModal: false });
-      let self = this;
-      setTimeout(() => {
-        self.setState({ messages, allMessages: messages, reloading: false });
-      }, 1500);
+    let toBsent = {
+      "senderUserId": parseInt(localStorage.getItem('CurrentUsersID')),
+      "reciverUserId": 2,
+      "sendTime": 1565020749899,
+      "viewTime": 0,
+      "parrentMessage": 12,
+      "title": this.state.addNewMessageDetail.title,
+      "tag": "#something",
+      "body": this.state.addNewMessageDetail.message,
+      "isRead": false,
+      "valid": false
     }
+    console.log('toBsent', toBsent);
+    
+    (async () => {
+      try{
+            this.setState({ reloading: true });
+            const rawResponse = await fetch(AppConfig.baseURL + '/message/', {
+            method: 'POST',
+            headers: {
+               'Content-Type': 'application/json',
+               'Authorization': localStorage.getItem('given_token')
+            },
+            body: JSON.stringify(toBsent)
+         });           
+         if (rawResponse.status === 200){
+           this.getUserMessages()
+           this.toggleWriteNewMessageModal()
+         }else{
+            this.setState({ reloading: false });
+            NotificationManager.error('something went wrong' + rawResponse.status)
+            this.toggleWriteNewMessageModal();
+         }
+      } catch (err){
+        this.setState({ reloading: false });
+        NotificationManager.error("something went wrong on Connecting The Server : " + err);
+        this.toggleWriteNewMessageModal();
+      }
+    })();
   }
-
-  /**
-   * On Reply Message
-   */
-  onReplyMessage(index) {
-    let messages = this.state.allMessages;
-    messages[index].replyBox = !messages[index].replyBox;
-    this.setState({ messages, allMessages: messages });
-  }
-
-  /**
-   * Send Reply
-   */
-  sendReply(index) {
-    let messages = this.state.allMessages;
-    messages[index].replyBox = false;
-    this.setState({ messages, allMessages: messages, reloading: true });
-    let self = this;
-    setTimeout(() => {
-      self.setState({ reloading: false });
-      NotificationManager.success('Reply Sent Successfully!');
-    }, 1500);
-  }
-
-  /**
-   * Hanlde Close View Message
-   */
   handleCloseViewMessage() {
     this.setState({ viewMessageDialog: false });
   }
-
-  /**
-   * View Message Hanlder
-   */
   viewMessage(message) {
     this.setState({ viewMessageDialog: true, selectedMessage: message });
   }
 
   render() {
-    const { messages, reloading, selectedMessage } = this.state;
+    const { reloading } = this.state;
+    console.log('messages', this.state.messages);
+    
     return (
       <div className="messages-wrapper">
         <div className="row mb-30">
@@ -196,55 +166,27 @@ export default class Messages extends Component {
         <ul className="msg-list list-unstyled">
           <li className="d-flex justify-content-between align-items-center">
             <div className="toolbar">
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={this.state.jason}
-                    color="primary"
-                    onChange={this.handleChange('all')}
-                    value="all"
-                  />
-                }
-              />
               <IconButton onClick={() => this.onReloadMessages()} className="btn-outline-default">
                 <i className="ti-reload"></i>
               </IconButton>
             </div>
             <span className="fs-14">1-50 of 234</span>
           </li>
-          {messages && messages.map((data, key) => (
-            <li className="clearfix d-flex" key={key}>
-              <Checkbox
-                checked={data.select}
-                className="pull-left"
-                color="primary"
-                onClick={() => this.onSelectMessage(key)}
-              />
-              <IconButton className={classnames("pull-left mr-15", { 'text-warning': data.starred })} onClick={() => this.markMessageAsStar(key)}>
-                <i className="ti-star"></i>
-              </IconButton>
+          {this.state.messages.map(each => (
+            <li className="clearfix d-flex" key={each.id}>
               <div className="media pull-left">
-                {data.userAvatar !== '' ?
-                  <img src={data.userAvatar} alt="user prof" className="rounded-circle mr-15" width="50" height="50" />
-                  : <Avatar className="mr-15">{data.userName.charAt(0)}</Avatar>
+                {each.userAvatar !== '' ?
+                  <img src={each.userAvatar} alt="user prof" className="rounded-circle mr-15" width="50" height="50" />
+                  : <Avatar className="mr-15">{each.userName.charAt(0)}</Avatar>
                 }
                 <div className="media-body">
-                  <h5>{data.userName}</h5>
-                  <p className="text-muted">{data.message}</p>
+                  <h5>{each.userName}</h5>
+                  <p className="text-muted">{each.message}</p>
                   <div className="mb-10">
-                    <Button className="btn-default mr-10 btn-xs" onClick={() => this.onReplyMessage(key)}>
-                      <i className="ti-back-right mr-10"></i> Reply
-                    </Button>
-                    <Button className="btn-default btn-xs" onClick={() => this.viewMessage(data)}>
+                    <Button className="btn-default btn-xs" onClick={() => this.viewMessage(each)}>
                       <i className="ti-eye mr-10"></i> Read
                     </Button>
                   </div>
-                  {data.replyBox &&
-                    <InputGroup className="w-75">
-                      <Input className="mr-20" />
-                      <Button color="primary" className="text-white" variant="raised" onClick={() => this.sendReply(key)}>Send</Button>
-                    </InputGroup>
-                  }
                 </div>
               </div>
             </li>
@@ -257,17 +199,17 @@ export default class Messages extends Component {
           <ModalHeader toggle={() => this.toggleWriteNewMessageModal()}>Write New Message</ModalHeader>
           <ModalBody>
             <FormGroup>
-              <Label for="name">Name</Label>
+              <Label for="name">Title</Label>
               <Input
                 type="text"
-                name="email"
+                name="massegeTitle"
                 id="name"
                 placeholder="Enter Name"
-                value={this.state.addNewMessageDetail.userName}
+                value={this.state.addNewMessageDetail.title}
                 onChange={(e) => this.setState({
                   addNewMessageDetail: {
                     ...this.state.addNewMessageDetail,
-                    userName: e.target.value
+                    title: e.target.value
                   }
                 })}
               />
@@ -295,18 +237,18 @@ export default class Messages extends Component {
         </Modal>
         <Dialog open={this.state.viewMessageDialog} onClose={() => this.handleCloseViewMessage()}>
           <DialogContent>
-            {selectedMessage !== null &&
+            {this.state.selectedMessage !== null &&
               <div className="clearfix d-flex">
-                <div className="media pull-left">
-                  {selectedMessage.userAvatar !== '' ?
-                    <img src={selectedMessage.userAvatar} alt="user prof" className="rounded-circle mr-15" width="50" height="50" />
-                    : <Avatar className="mr-15">{selectedMessage.userName.charAt(0)}</Avatar>
-                  }
-                  <div className="media-body">
-                    <h5>{selectedMessage.userName}</h5>
-                    <p className="text-muted">{selectedMessage.message}</p>
-                  </div>
+              <div className="media pull-left">
+                {this.state.selectedMessage.userAvatar !== '' ?
+                  <img src={this.state.selectedMessage.userAvatar} alt="user prof" className="rounded-circle mr-15" width="50" height="50" />
+                  : <Avatar className="mr-15">{this.state.selectedMessage.userName.charAt(0)}</Avatar>
+                }
+                <div className="media-body">
+                  <h5>{this.state.selectedMessage.userName}</h5>
+                  <p className="text-muted">{this.state.selectedMessage.message}</p>
                 </div>
+              </div>
               </div>
             }
           </DialogContent>
