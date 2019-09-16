@@ -74,7 +74,9 @@ class Header extends Component {
 	openMobileSearchForm() {
 		this.setState({ isMobileSearchFormVisible: true });
 	}
-
+	ChatDrawerToggle = () => {
+		this.setState({customizer: false})
+	}
 	render() {
 		const { isMobileSearchFormVisible } = this.state;
 		$('body').click(function () {
@@ -169,7 +171,7 @@ class Header extends Component {
 						open={this.state.customizer}
 						onClose={() => this.setState({ customizer: false })}
 					>
-						<ChatSidebar />
+						<ChatSidebar toggleChatDrawer = {this.ChatDrawerToggle} />
 					</Drawer>
 				</Toolbar>
 				<DashboardOverlay

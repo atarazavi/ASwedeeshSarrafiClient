@@ -10,7 +10,7 @@ import IntlMessages from 'Util/IntlMessages';
 import IconButton from '@material-ui/core/IconButton';
 
 import Tooltip from '@material-ui/core/Tooltip';
-// app config
+import { NotificationManager } from "react-notifications";
 import AppConfig from 'Constants/AppConfig';
 
 class RequestsList extends React.Component {
@@ -18,15 +18,59 @@ class RequestsList extends React.Component {
 		theRequestslist: [
             {
 				id: 123,
-                title : "vaarize nafagheye Amme!",
-                Account: "Amme - Pasargad",
-                volume: "1000",
+				title : "vaarize nafagheye Amme!",
+				accountID: 0,
+                accountName: "Amme - Pasargad",
+                volume: 1000,
 				currency: "Euro",
 				status: "Succeed"
-            }
+            },
         ]
 	}
 	componentDidMount = () => {	
+		(async () => {
+			try {
+				const rawResponse = await fetch(
+					AppConfig.baseURL +
+					"/request/forCostumer/" +
+					localStorage.getItem('CurrentUsersID'),
+					{
+						method: "GET",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: localStorage.getItem("given_token")
+						}
+					}
+				);
+				const content = await rawResponse.json();
+				if (rawResponse.status === 200) {
+					let theRequestslist = content.map(each => {
+						console.log(each.state);
+						
+						return({
+							id: each.id,
+							title: each.title,
+							accountID : each.paymentTargetId,
+							accountName: 'felan ye chizi',
+							volume: each.volume,
+							currency: each.currencyType,
+							status: each.state
+						})
+					})
+					this.setState({
+						theRequestslist
+					});
+				} else {
+					NotificationManager.error(
+						"something went wrong" + rawResponse.status
+					);
+				}
+			} catch (err) {
+				NotificationManager.error(
+					"something went wrong on Connecting The Server : " + err
+				);
+			}
+		})();
 	}
 	actionClickhandler = (id, title, action) => {
 		switch(action) { 
@@ -45,23 +89,26 @@ class RequestsList extends React.Component {
 	render() {
 		const columns = ["Request Title", "Destination Account", "Amount", "Currency", "Status", "Actions"]
 		var tablemessage = "Sorry, no matching records found"
-		const data = this.state.theRequestslist.map(eachaction => {
+		const data = this.state.theRequestslist.map(eachRequest => {
 			return(
-				[eachaction.title, eachaction.Account , eachaction.volume, eachaction.currency, 
-                    eachaction.status == 'Pending' ?
-                    <span className={`badge badge-info`}>{ eachaction.status }</span>
+				[eachRequest.title, eachRequest.accountName , eachRequest.volume, eachRequest.currency, 
+                    eachRequest.status == 'WaitingForAdmin' ?
+                    <span className={`badge badge-info`}>{ eachRequest.status }</span>
                     :
-                    eachaction.status == 'Succeed' ?
-                    <span className={`badge badge-success`}>{ eachaction.status }</span>
+                    eachRequest.status == 'Done' ?
+                    <span className={`badge badge-success`}>{ eachRequest.status }</span>
                     :
-                    eachaction.status == 'Cancelled' ?
-                    <span className={`badge badge-danger`}>{ eachaction.status }</span>
+                    eachRequest.status == 'Canceled' ?
+                    <span className={`badge badge-danger`}>{ eachRequest.status }</span>
+                    :
+                    eachRequest.status == 'WaitingForPayment' ?
+                    <span className={`badge badge-info`}>{ eachRequest.status }</span>
                     :
                     'unKnown!'
                 	,
 					<div>
 						<Tooltip id="tooltip-fab" title={<IntlMessages id="Details"/>}>
-							<IconButton className="text-danger" onClick={() => this.actionClickhandler(eachaction.id, eachaction.title, 'more')} aria-label="Details">
+							<IconButton className="text-danger" onClick={() => this.actionClickhandler(eachRequest.id, eachRequest.title, 'more')} aria-label="Details">
 								<i className="zmdi zmdi-eye"></i>
 							</IconButton>	
 						</Tooltip>

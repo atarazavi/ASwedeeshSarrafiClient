@@ -12,18 +12,18 @@ class STIB_Auth {
                     'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        "username":"milad",
-                        "password":"something"
-                        // "username":uName,
-                        // "password":password
+                        // "username":"milad",
+                        // "password":"something"
+                        "username":uName,
+                        "password":password
                     })
                 });
                 const content = await rawResponse.json();            
                 if (rawResponse.status === 200){
                     console.log('token: ', content.token);
                     localStorage.setItem("given_token", "Bearer "+content.token);
-                    // localStorage.setItem("CurrentUsersID", content.UserID)
-                    localStorage.setItem("CurrentUsersID", 0)
+                    localStorage.setItem("CurrentUsersID", content.userId)
+                    // localStorage.setItem("CurrentUsersID", 0)
                     cb()
                 }else{
                     NotificationManager.error('usename or password is incorrect' + rawResponse.status)

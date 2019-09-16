@@ -21,8 +21,9 @@ import classnames from 'classnames';
 import CircularProgress from '@material-ui/core/CircularProgress';
 import { NotificationManager } from 'react-notifications';
 
+import AppConfig from 'Constants/AppConfig';
 // edit address from
-import EditAddressForm from './EditAddressForm';
+import EditBankAccountForm from './EditBankAccountForm';
 
 // intl messages
 import IntlMessages from 'Util/IntlMessages';
@@ -39,19 +40,59 @@ export default class BankAccounts extends Component {
 		collapse: false,
 		loading: false,
 		addresses: userAddresses,
-		addNewAddressDetail: {
+		newBankAccount: {
 			id: null,
 			name: 'Admin',
-			city: '',
-			country: '',
-			phone: '',
-			email: '',
+			info: '',
+			description: '',
 		},
+		bankAccountsList: [],
 		deleteAddress: null,
-		editAddressModal: false,
-		selectedAddress: null
+		editBankAccountModal: false,
+		selectedBankAccountID: 0,
+		selectedBankAccount: null
 	};
-
+	componentDidMount = () => {
+		this.getBankAccounts()
+	}
+	getBankAccounts = () => {
+		(async () => {
+			try {
+				const rawResponse = await fetch(
+					AppConfig.baseURL + "/paymentTarget/forCustomer/" + localStorage.getItem('CurrentUsersID'),
+					{
+						method: "GET",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: localStorage.getItem("given_token")
+						}
+					}
+				);
+				const content = await rawResponse.json();
+				if (rawResponse.status === 200) {
+					let bankAccountsList = content.map(each => {
+						return({
+							id: each.id,
+							name: each.name,
+							info : each.info,
+							description: each.description,
+						})
+					})
+					this.setState({
+						bankAccountsList
+					});
+				} else {
+					NotificationManager.error(
+						"something went wrong" + rawResponse.status
+					);
+				}
+			} catch (err) {
+				NotificationManager.error(
+					"something went wrong on Connecting The Server : " + err
+				);
+			}
+		})();
+	}
 	handleChange = name => (event, checked) => {
 		this.setState({ [name]: checked });
 	};
@@ -64,27 +105,8 @@ export default class BankAccounts extends Component {
 	 * Add New Address Hanlder
 	 */
 	addNewBankAccount() {
-		const { city, country, state, addressLine2, addressLine1 } = this.state.addNewAddressDetail;
-		if (city !== '' && country !== '' && state !== '' && addressLine1 !== '' && addressLine2 !== '') {
-			let newAddress = {
-				...this.state.addNewAddressDetail,
-				id: new Date().getTime()
-			}
-			let addresses = this.state.addresses;
-			if (newAddress.isDefault) {
-				for (const address of addresses) {
-					if (address.isDefault) {
-						address.isDefault = false
-					}
-				}
-			}
-			addresses.push(newAddress);
-			this.setState({ loading: true });
-			let self = this;
-			setTimeout(() => {
-				self.setState({ loading: false, addresses });
-			});
-		}
+		const { name, info, description } = this.state.newBankAccount
+		
 	}
 
 	/**
@@ -102,7 +124,7 @@ export default class BankAccounts extends Component {
 	/**
 	 * On Delete Address
 	 */
-	onDeleteAddress(address) {
+	onDeleteBankAccount(address) {
 		this.refs.deleteConfirmationDialog.open();
 		this.setState({ deleteAddress: address });
 	}
@@ -126,24 +148,28 @@ export default class BankAccounts extends Component {
 	/**
 	 * Edit Address
 	 */
-	onEditAddress(address) {
-		this.setState({ editAddressModal: true, selectedAddress: address });
+	onEditBankAccount(BankAccount) {
+		this.setState({
+			selectedBankAccountID: BankAccount.id,
+			selectedBankAccount: BankAccount,
+			editBankAccountModal: true
+		});
 	}
 
 	/**
 	 * Toggle Edit Address Modal
 	 */
-	toggleEditAddressModal() {
-		this.setState({ editAddressModal: false });
+	toggleEditBankAccountModal() {
+		this.setState({ editBankAccountModal: false });
 	}
 
 	/**
 	 * On Update Edit Address
 	 */
-	onUpdateEditAddressModal(key, value) {
+	onUpdateEditBankAccountModal(key, value) {
 		this.setState({
-			selectedAddress: {
-				...this.state.selectedAddress,
+			selectedBankAccount: {
+				...this.state.selectedBankAccount,
 				[key]: value
 			}
 		});
@@ -152,47 +178,67 @@ export default class BankAccounts extends Component {
 	/**
 	 * On Update Address
 	 */
-	updateEditAddressModal() {
-		let addresses = this.state.addresses;
-		const { selectedAddress } = this.state;
-		let indexOfUpdateAddress;
-		for (let i = 0; i < addresses.length; i++) {
-			const address = addresses[i];
-			if (selectedAddress.isDefault) {
-				address.isDefault = false
+	updateEditBankAccountModal() {	
+		const { selectedBankAccountID, selectedBankAccount } = this.state;
+		(async () => {
+			try {
+				const rawResponse = await fetch(
+					AppConfig.baseURL +
+					"/paymentTarget/" +
+					selectedBankAccountID,
+					{
+						method: "PUT",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: localStorage.getItem("given_token")
+						},
+						body: JSON.stringify({
+							"id": selectedBankAccountID,
+							"name": selectedBankAccount.name,
+							"info": selectedBankAccount.info,
+							"description": selectedBankAccount.description,
+							"costumerId": localStorage.getItem('CurrentUsersID')
+						})
+					}
+				);
+				const content = await rawResponse.json();
+				if (rawResponse.status === 200) {
+					NotificationManager.success("Editing, Successfully Done!")
+					this.getBankAccounts()
+					this.toggleEditBankAccountModal()
+				} else {
+					NotificationManager.error(
+						"something went wrong" + rawResponse.status
+					);
+				}
+			} catch (err) {
+				NotificationManager.error(
+					"something went wrong on Connecting The Server : " + err
+				);
 			}
-			if (address.id === selectedAddress.id) {
-				indexOfUpdateAddress = i;
-			}
-		}
-		addresses[indexOfUpdateAddress] = selectedAddress;
-		this.setState({ loading: true, editAddressModal: false });
-		let self = this;
-		setTimeout(() => {
-			self.setState({ loading: false, addresses });
-		}, 2000);
+		})();
+
 	}
 
 	render() {
-		const { addresses, addNewAddressDetail, loading, editAddressModal, selectedAddress } = this.state;
+		const { bankAccountsList, addNewAddressDetail, loading, editBankAccountModal, selectedBankAccount } = this.state;
 		return (
 			<div className="address-wrapper">
-				<h2 className="heading">Your frequent using bank accouns:</h2>
+				<h2 className="heading">Your frequent using bank accounts:</h2>
 				<div className="row row-eq-height">
-					{addresses.map((address, key) => (
+					{bankAccountsList.map((eachaccount, key) => (
 						<div className="col-sm-6 col-md-4 col-lg-3" key={key}>
 							<div className={classnames("card-base", { 'border-primary': true })}>
 								<div className="d-flex justify-content-between">
-									<h5 className="fw-bold">5022-2910-5738-4388</h5>
+									<h5 className="fw-bold">{eachaccount.name}</h5>
 									<div className="list-action">
-										<a href="javascript:void(0)" onClick={() => this.onEditAddress(address)}><i className="ti-pencil"></i></a>
-										<a href="javascript:void(0)" onClick={() => this.onDeleteAddress(address)}><i className="ti-close"></i></a>
+										<a href="javascript:void(0)" onClick={() => this.onEditBankAccount(eachaccount)}><i className="ti-pencil"></i></a>
+										<a href="javascript:void(0)" onClick={() => this.onDeleteBankAccount(eachaccount)}><i className="ti-close"></i></a>
 									</div>
 								</div>
 								<address>
-									<span>PayPal</span>
-									<span>ata.razavi89@gmail.com</span>
-									<span>some descriptions about the account</span>
+									<span>{eachaccount.info}</span>
+									<span>{eachaccount.description}</span>
 								</address>
 							</div>
 						</div>
@@ -200,7 +246,7 @@ export default class BankAccounts extends Component {
 				</div>
 				<Button variant="raised" color="primary" className="text-white" onClick={this.toggle}>Add New Bank Account</Button>
 				<div className="py-50 w-50">
-					<Collapse isOpen={this.state.collapse}>
+					{/* <Collapse isOpen={this.state.collapse}>
 						<div className="mb-20">
 							<h2 className="heading mb-5">Add a new Bank-Account</h2>
 							<span>Make sure you write correct numbers and spells. </span>
@@ -276,7 +322,7 @@ export default class BankAccounts extends Component {
 							</FormGroup>
 							<Button variant="raised" color="primary" className="text-white" onClick={() => this.addNewBankAccount()}>Save</Button>
 						</Form>
-					</Collapse>
+					</Collapse> */}
 				</div>
 				<DeleteConfirmationDialog
 					title="Are You Sure Want To Delete?"
@@ -284,18 +330,18 @@ export default class BankAccounts extends Component {
 					onConfirm={() => this.deleteAddress()}
 					ref="deleteConfirmationDialog"
 				/>
-				<Modal isOpen={editAddressModal} toggle={() => this.toggleEditAddressModal()}>
-					<ModalHeader toggle={() => this.toggleEditAddressModal()}>Edit Address</ModalHeader>
+				<Modal isOpen={editBankAccountModal} toggle={() => this.toggleEditBankAccountModal()}>
+					<ModalHeader toggle={() => this.toggleEditBankAccountModal()}>Edit Bank Account</ModalHeader>
 					<ModalBody>
-						<EditAddressForm
-							selectedAddress={selectedAddress}
-							onUpdate={this.onUpdateEditAddressModal.bind(this)}
+						<EditBankAccountForm
+							selectedBankAccount={selectedBankAccount}
+							onUpdate={this.onUpdateEditBankAccountModal.bind(this)}
 							handleChangeDefaultAddress={() => this.handleChangeDefaultAddress()}
 						/>
 					</ModalBody>
 					<ModalFooter>
-						<Button variant="raised" className="text-white btn-success" onClick={() => this.updateEditAddressModal()}>Update</Button>{' '}
-						<Button variant="raised" className="text-white btn-danger" onClick={() => this.toggleEditAddressModal()}>Cancel</Button>
+						<Button variant="raised" className="text-white btn-success" onClick={() => this.updateEditBankAccountModal()}>Update</Button>{' '}
+						<Button variant="raised" className="text-white btn-danger" onClick={() => this.toggleEditBankAccountModal()}>Cancel</Button>
 					</ModalFooter>
 				</Modal>
 				{loading &&

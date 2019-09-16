@@ -7,7 +7,7 @@ import AppBar from '@material-ui/core/AppBar';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
 import {NotificationManager } from 'react-notifications';
-
+import { withRouter } from 'react-router-dom';
 // helpers
 import { textTruncate } from 'Helpers/helpers';
 
@@ -18,17 +18,17 @@ class ChatSidebar extends Component {
    state = {
       messages: [
          {
-         id: 0,
-         first_name: 'Admin',
-         last_chat: '',
-         photo_url: require('Assets/avatars/user-3.jpg'),
-      }
-   ]
+            id: 0,
+            first_name: 'Admin',
+            last_chat: '',
+            photo_url: require('Assets/avatars/user-3.jpg'),
+         }
+      ]
    }
    componentDidMount(){
       (async () => {
          try{
-               const rawResponse = await fetch(AppConfig.baseURL + '/message/forUser/' + localStorage.getItem('CurrentUsersID'), {
+               const rawResponse = await fetch(AppConfig.baseURL + '/unreadMessage/forUser/' + localStorage.getItem('CurrentUsersID'), {
                method: 'GET',
                headers: {
                   'Content-Type': 'application/json',
@@ -37,17 +37,42 @@ class ChatSidebar extends Component {
             });
             const content = await rawResponse.json();            
             if (rawResponse.status === 200){
-                           
-               let messages = content.filter(each => each.parrentMessage === -1).map(each => {
+               // let messages = content.filter(each => each.parrentMessage === -1).map(each => {
+                  let messages = content.map(each => {
                      return({
                         id: each.id,
-                        first_name: each.senderUserId === 0 ? 'Admin' : each.senderUserId,
+                        first_name: each.senderUserName,
                         last_chat: each.body,
                         photo_url: require('Assets/avatars/user-3.jpg'),
                      }) 
                })
                this.setState({
                   messages
+               })
+            }else{
+               NotificationManager.error('something went wrong' + rawResponse.status)
+            }
+         } catch (err){
+            NotificationManager.error("something went wrong on Connecting The Server : " + err);
+         }
+      })();
+   }
+   loadRelatedRequest = (MessageID) => {      
+      (async () => {
+         try{
+               const rawResponse = await fetch(AppConfig.baseURL + '/message/topParent/' + MessageID, {
+               method: 'GET',
+               headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': localStorage.getItem('given_token')
+               }
+            });
+            const content = await rawResponse.json();            
+            if (rawResponse.status === 200){
+               this.props.toggleChatDrawer()
+               this.props.history.push({
+                  pathname: '/app/requestMoreInfo',
+                  state: { messagesID: content.id  }
                })
             }else{
                NotificationManager.error('something went wrong' + rawResponse.status)
@@ -74,6 +99,7 @@ class ChatSidebar extends Component {
                      <ListItemText
                         primary={eachMessage.first_name}
                         secondary={textTruncate(eachMessage.last_chat, 16)}
+                        onClick={() => this.loadRelatedRequest(eachMessage.id)}
                      />
                   </ListItem>
                ))}
@@ -83,4 +109,4 @@ class ChatSidebar extends Component {
    }
 }
 
-export default ChatSidebar;
+export default withRouter(ChatSidebar);
