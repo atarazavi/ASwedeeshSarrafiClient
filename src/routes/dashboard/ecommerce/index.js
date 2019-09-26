@@ -46,12 +46,12 @@ export default class EcommerceDashboard extends Component {
 							data={visitorsData}
 						/>
 					</div>
-					<div className="col-sm-12 col-md-4 w-xs-half-block">
+					<div className="col-sm-6 col-md-4 w-xs-half-block">
 						<SEK2RialAreaChart
 							data={ordersData}
 						/>
 					</div>
-					<div className="col-sm-6 col-md-4 w-xs-full">
+					<div className="col-sm-6 col-md-4 w-xs-half-block">
 						<USD2RialAreaChart
 							data={salesData}
 						/>
